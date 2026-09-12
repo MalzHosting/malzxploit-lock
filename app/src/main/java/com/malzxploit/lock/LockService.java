@@ -47,7 +47,6 @@ public class LockService extends Service {
             startForeground(1, n);
         } catch (Exception ignored) {}
 
-
         showLock();
         return START_STICKY;
     }
@@ -138,7 +137,7 @@ public class LockService extends Service {
         sb.append("@media(max-width:450px){h1{font-size:28px}.subtitle{font-size:18px}.pin-box{width:305px}.keypad{grid-template-columns:repeat(3,105px)}button{height:78px}}");
         sb.append("</style></head><body>");
 
-        sb.append("<video id='bgvid' autoplay loop muted playsinline preload='auto'>");
+        sb.append("<video id='bgvid' autoplay loop playsinline preload='auto'>");
         sb.append("<source src='");
         sb.append(VIDEO_URL);
         sb.append("' type='video/mp4'>");
