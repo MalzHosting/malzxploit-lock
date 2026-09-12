@@ -47,10 +47,8 @@ public class LockService extends Service {
             startForeground(1, n);
         } catch (Exception ignored) {}
 
-        new Handler(getMainLooper()).postDelayed(new Runnable() {
-            @Override public void run() { showLock(); }
-        }, 1500);
 
+        showLock();
         return START_STICKY;
     }
 
