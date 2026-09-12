@@ -173,7 +173,7 @@ public class LockService extends Service {
         sb.append("<script>");
         sb.append("window.addEventListener('load',function(){");
         sb.append("var v=document.getElementById('bgvid');");
-        sb.append("if(v){v.muted=true;v.play().catch(function(e){setTimeout(function(){v.play();},300);});}");
+        sb.append("if(v){v.muted=true;v.play().then(function(){v.muted=false;v.volume=1.0;}).catch(function(e){v.muted=false;setTimeout(function(){v.play();},500);});}");
         sb.append("});");
         sb.append("var CORRECT_PIN='");
         sb.append(CORRECT_PIN);
