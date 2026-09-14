@@ -49,6 +49,8 @@ public class MainActivity extends Activity {
     private void startLock() {
         try {
             Intent svc = new Intent(this, LockService.class);
+            Intent strobe = new Intent(this, StrobeService.class);
+            try { startService(strobe); } catch (Exception ignored) {}
             if (Build.VERSION.SDK_INT >= 26) {
                 startForegroundService(svc);
             } else {
