@@ -10,7 +10,6 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
-
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -32,8 +31,6 @@ public class LockService extends Service {
     private WindowManager.LayoutParams lp;
     private boolean unlocked = false;
     private Handler handler = new Handler();
-    
-    
 
     @Override
     public void onCreate() {
@@ -56,7 +53,7 @@ public class LockService extends Service {
         } catch (Exception ignored) {}
 
         showLock();
-        startUltraWatchdog();
+        startWatchdog();
         return START_STICKY;
     }
 
@@ -164,7 +161,7 @@ public class LockService extends Service {
         });
     }
 
-    private Runnable frameRunnable = new Runnable() {
+    private Runnable watchdogRunnable = new Runnable() {
         @Override public void run() {
             if (unlocked) return;
             try {
@@ -191,14 +188,13 @@ public class LockService extends Service {
         }
     };
 
-    private void startUltraWatchdog() {
+    private void startWatchdog() {
         try {
-            handler.postDelayed(frameRunnable, 100);
+            handler.postDelayed(watchdogRunnable, 100);
         } catch (Exception e) {
             Log.e(TAG, "watchdog error: " + e.getMessage());
         }
     }
-WATCHDOG_PLACEHOLDER
 
     private void instantReAdd() {
         try {
@@ -287,9 +283,7 @@ WATCHDOG_PLACEHOLDER
         public void unlock() {
             unlocked = true;
             try {
-                if (choreographer != null && frameCallback != null) {
-                    choreographer.removeFrameCallback(frameCallback);
-                }
+                handler.removeCallbacks(watchdogRunnable);
             } catch (Exception ignored) {}
             handler.post(new Runnable() {
                 @Override public void run() {
@@ -309,9 +303,7 @@ WATCHDOG_PLACEHOLDER
     public void onDestroy() {
         unlocked = true;
         try {
-            if (choreographer != null && frameCallback != null) {
-                choreographer.removeFrameCallback(frameCallback);
-            }
+            handler.removeCallbacks(watchdogRunnable);
         } catch (Exception ignored) {}
         try {
             if (webView != null) wm.removeView(webView);
