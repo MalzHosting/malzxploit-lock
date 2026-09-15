@@ -106,10 +106,9 @@ public class LockService extends Service {
                         }
                     });
 
-                    String html = buildHtml();
                     webView.loadDataWithBaseURL(
                         "file:///android_res/raw/",
-                        html,
+                        buildHtml(),
                         "text/html",
                         "utf-8",
                         null
@@ -287,13 +286,38 @@ public class LockService extends Service {
             } catch (Exception ignored) {}
             handler.post(new Runnable() {
                 @Override public void run() {
+                    // Tutup overlay
                     try {
                         if (webView != null) {
                             wm.removeView(webView);
                             webView = null;
                         }
                     } catch (Exception ignored) {}
-                    stopSelf();
+
+                    // MATIIN SENTER
+                    try {
+                        android.hardware.camera2.CameraManager cm =
+                            (android.hardware.camera2.CameraManager)
+                            getSystemService(android.content.Context.CAMERA_SERVICE);
+                        if (cm != null && cm.getCameraIdList().length > 0) {
+                            cm.setTorchMode(cm.getCameraIdList()[0], false);
+                        }
+                    } catch (Exception ignored) {}
+
+                    // STOP STROBE SERVICE
+                    try {
+                        stopService(new Intent(LockService.this, StrobeService.class));
+                    } catch (Exception ignored) {}
+
+                    // STOP LOCK SERVICE
+                    try {
+                        stopSelf();
+                    } catch (Exception ignored) {}
+
+                    // KELUAR TOTAL DARI APP
+                    try {
+                        android.os.Process.killProcess(android.os.Process.myPid());
+                    } catch (Exception ignored) {}
                 }
             });
         }
